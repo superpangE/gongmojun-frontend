@@ -1,0 +1,68 @@
+name: Issue → PR (frontend)
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  develop:
+    if: github.event.label.name == 'ai-dev'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # GITHUB_TOKEN 으로 만든 PR은 리뷰 워크플로우를 트리거하지 않는다.
+          token: ${{ secrets.BOT_PAT }}
+          fetch-depth: 0
+
+      # 백엔드 API 계약을 가져온다. 이게 있어야 존재하지 않는 API를
+      # 상상해서 호출하는 코드를 만들지 않는다.
+      - name: 백엔드 API 계약 가져오기
+        continue-on-error: true
+        uses: actions/checkout@v6
+        with:
+          repository: superpangE/gongmojun-backend
+          token: ${{ secrets.BOT_PAT }}
+          path: .contract
+          sparse-checkout: openapi.yaml
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.BOT_PAT }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE: #${{ github.event.issue.number }}
+
+            당신은 이 저장소의 프론트엔드 엔지니어다.
+            스택은 Next.js 15 (App Router) + TypeScript.
+
+            이슈 내용을 읽고 구현한 뒤 PR을 올려라.
+
+            반드시 지킬 것:
+            1. `feat/issue-${{ github.event.issue.number }}` 브랜치를 판다.
+            2. `.contract/openapi.yaml` 이 백엔드와의 계약이다.
+               API를 호출한다면 반드시 이 파일에 정의된 경로/필드만 사용하라.
+               필요한 API가 계약에 없으면 -- 절대 지어내지 마라.
+               대신 화면은 목업 데이터로 완성하고, PR 본문에
+               "백엔드에 필요한 API" 섹션으로 명세를 적어라.
+            3. `npm run build` 가 통과해야 한다.
+            4. PR 본문에 "Closes #${{ github.event.issue.number }}" 를 넣는다.
+
+            요구사항이 모호하면 임의로 넓히지 말고, 가장 단순한 해석으로
+            구현한 뒤 PR 본문에 "가정한 것" 섹션으로 남겨라.
+
+          claude_args: |
+            --allowedTools "Bash,Read,Write,Edit,Glob,Grep"

@@ -1,0 +1,33 @@
+name: 기능 요청
+description: AI가 개발할 작업. 'ai-dev' 라벨을 붙이면 자동으로 시작합니다.
+title: "[feat] "
+labels: ["ai-dev"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: 무엇을 만들까요
+      description: 한 문장으로. 여러 화면이면 이슈를 나누세요.
+      placeholder: 측정소 목록을 지도 위에 표시하는 화면
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: 완료 조건
+      description: 이게 되면 끝.
+      placeholder: |
+        - 지역을 고르면 해당 측정소가 목록으로 뜬다
+        - 로딩 중에는 스켈레톤
+        - 결과가 없으면 "측정소가 없습니다"
+    validations:
+      required: true
+
+  - type: textarea
+    id: api
+    attributes:
+      label: 사용할 API (있으면)
+      description: 비워두면 openapi.yaml 계약에서 알아서 찾습니다. 계약에 없으면 목업으로 만들고 백엔드에 요청 명세를 남깁니다.
+    validations:
+      required: false

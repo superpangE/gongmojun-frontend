@@ -1,0 +1,99 @@
+name: PR Review (frontend)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm run build
+
+  # 프론트 페르소나: 자기 코드 리뷰
+  self-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR: #${{ github.event.pull_request.number }}
+
+            당신은 이 서비스의 시니어 프론트엔드 엔지니어다.
+
+            아래만 본다:
+            - 로딩/에러 상태가 처리되지 않은 데이터 fetch
+              (공공 API는 느리고 자주 실패한다. 빈 화면이 뜨면 안 된다)
+            - API 키가 클라이언트 번들에 노출되는지
+              (NEXT_PUBLIC_ 접두사가 붙은 시크릿은 브라우저에 그대로 나간다)
+            - 접근성 기본: 이미지 alt, 버튼 라벨, 폼 label
+            - 목록이 비었을 때 화면이 깨지는지
+
+            스타일, 네이밍, 포매팅은 지적하지 마라.
+            문제가 없으면 "문제 없음" 한 줄만 남겨라.
+            지적할 때는 반드시 수정 코드를 함께 제시하라.
+
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,Glob,Grep"
+
+  # 백엔드 페르소나: 이 프론트 코드가 계약을 지키는지 본다
+  backend-persona-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: 백엔드 API 계약 가져오기
+        continue-on-error: true
+        uses: actions/checkout@v6
+        with:
+          repository: superpangE/gongmojun-backend
+          token: ${{ secrets.BOT_PAT }}
+          path: .contract
+          sparse-checkout: openapi.yaml
+          sparse-checkout-cone-mode: false
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          track_progress: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR: #${{ github.event.pull_request.number }}
+
+            당신은 이 프론트엔드가 호출하는 API를 '제공하는' 백엔드 엔지니어다.
+            프론트의 UI 구현에는 관심이 없다.
+
+            `.contract/openapi.yaml` 이 당신이 실제로 제공하는 API 명세다.
+            (파일이 없으면 백엔드가 아직 아무 API도 만들지 않은 것이다)
+
+            이 PR이 계약을 지키는지만 판단하라. 반드시 지적할 것:
+            - 계약에 없는 엔드포인트를 호출함 (404가 날 것이다)
+            - 응답에 없는 필드를 읽음 (undefined 가 될 것이다)
+            - 필수 요청 파라미터를 빠뜨림
+            - 타입 불일치 (스펙은 number 인데 string 으로 다룸)
+            - 목록 전체를 받아서 클라이언트에서 필터링/정렬함
+              → 서버에 쿼리 파라미터로 요청해야 한다고 지적하라
+
+            계약 위반을 찾으면 제목에 **[CONTRACT]** 를 붙여라.
+            UI/스타일/컴포넌트 구조는 절대 언급하지 마라. 프론트 소관이다.
+            위반이 없으면 "계약 준수" 한 줄만 남겨라.
+
+          claude_args: |
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,Glob,Grep"
