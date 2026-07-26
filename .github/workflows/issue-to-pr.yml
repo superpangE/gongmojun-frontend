@@ -52,6 +52,9 @@ jobs:
             이슈 내용을 읽고 구현한 뒤 PR을 올려라.
 
             반드시 지킬 것:
+            0. 작업이 끝나면 반드시 `gh pr create` 로 PR을 **직접 생성**하라.
+               브랜치만 푸시하고 "PR 생성 링크"를 남기는 것은 실패로 간주한다.
+               PR이 생성되어야 리뷰 자동화가 이어서 돈다.
             1. `feat/issue-${{ github.event.issue.number }}` 브랜치를 판다.
             2. `.contract/openapi.yaml` 이 백엔드와의 계약이다.
                API를 호출한다면 반드시 이 파일에 정의된 경로/필드만 사용하라.
@@ -66,3 +69,7 @@ jobs:
 
           claude_args: |
             --allowedTools "Bash,Read,Write,Edit,Glob,Grep"
+        env:
+          # gh pr create 가 쓰는 토큰. 기본 토큰으로 만든 PR은
+          # 리뷰 워크플로우를 트리거하지 않으므로 반드시 PAT 여야 한다.
+          GH_TOKEN: ${{ secrets.BOT_PAT }}
