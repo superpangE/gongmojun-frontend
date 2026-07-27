@@ -1,3 +1,5 @@
+import Header from "./components/Header";
+
 export const metadata = { title: "gongmojun" };
 
 export default function RootLayout({
@@ -7,7 +9,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko">
-      <body>{children}</body>
+      <body>
+        <Header />
+        {children}
+      </body>
     </html>
   );
 }
